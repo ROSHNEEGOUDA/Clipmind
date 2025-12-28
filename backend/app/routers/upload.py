@@ -21,10 +21,10 @@ os.makedirs(CLIPS_DIR, exist_ok=True)
 
 def process_video_async(path: str, job_id: str):
     try:
-        # 1️⃣ Get duration
+        # Get duration
         duration = get_video_duration(path)
 
-        # 2️⃣ Detect non-continuous highlights
+        #  Detect non-continuous highlights
         highlights = detect_highlights(duration)
 
         if not highlights:
@@ -32,7 +32,7 @@ def process_video_async(path: str, job_id: str):
             RESULTS[job_id] = []
             return
 
-        # 3️⃣ Create ONE reel
+        #  Create ONE reel
         reel_filename = f"{job_id}_reel.mp4"
         reel_path = os.path.join(CLIPS_DIR, reel_filename)
 
@@ -42,7 +42,7 @@ def process_video_async(path: str, job_id: str):
             highlights=highlights
         )
 
-        # 4️⃣ Save result (URL, not file path)
+        #  Save result (URL, not file path)
         RESULTS[job_id] = [{
             "video": f"/clips/{reel_filename}"
         }]
@@ -64,7 +64,7 @@ async def upload_video(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # ✅ Start background processing
+        #  Start background processing
         threading.Thread(
             target=process_video_async,
             args=(file_path, job_id),

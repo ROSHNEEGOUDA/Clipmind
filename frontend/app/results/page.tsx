@@ -1,5 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
+import api from "../../lib/apiInstance"
+
+interface Clip{
+  start: number;
+  duration: number;
+}
+
+interface ResultsResponse{
+  clips: Clip[];
+}
 
 export default function Results({ searchParams }: any) {
   const jobId = searchParams.jobId;
@@ -9,19 +19,17 @@ export default function Results({ searchParams }: any) {
   useEffect(() => {
     if (!jobId) return;
 
-    let interval: any;
+    let interval: NodeJS.Timeout;
 
     const fetchResults = async () => {
       try {
-        const res = await fetch(
-          `http://127.0.0.1:8000/results/${jobId}`
-        );
-        const data = await res.json();
+        const data = await api.get<ResultsResponse>(`/results/${jobId}`);
 
-        if (data.clips && data.clips.length > 0) {
+
+        if(data.clips?.length > 0){
           setClips(data.clips);
           setLoading(false);
-          clearInterval(interval); // ✅ STOP POLLING
+          clearInterval(interval);
         }
       } catch (err) {
         console.error("Polling error", err);

@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "../../lib/apiInstance";
+
+interface UploadResponse {
+  job_id: string;
+}
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
@@ -10,37 +15,37 @@ export default function Upload() {
   const router = useRouter();
 
   const handleUpload = async () => {
-    if (!file) {
-      setMessage("Please select a video file");
-      return;
-    }
+  if (!file) {
+    setMessage("Please select a video file");
+    return;
+  }
 
-    const formData = new FormData();
-    formData.append("file", file);
+  const formData = new FormData();
+  formData.append("file", file); 
 
-    try {
-      setLoading(true);
-      setMessage("Uploading and processing...");
+  try {
+    setLoading(true);
+    setMessage("Uploading and processing...");
 
-      const res = await fetch("http://127.0.0.1:8000/upload/", {
-        method: "POST",
-        body: formData,
-      });
+    const data = await api.post<{
+      job_id: string;
+      filename: string;
+      status: string;
+    }>("/upload", formData);
 
-      if (!res.ok) throw new Error("Upload failed");
+    router.push(`/results?jobId=${data.job_id}`);
+  } catch (err) {
+    console.error("Upload failed:", err);
+    setMessage("Upload failed. Please check backend logs.");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      const data = await res.json();
-      router.push(`/results?jobId=${data.job_id}`);
-    } catch {
-      setMessage("Upload failed. Please check backend connection.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <main className="relative min-h-screen bg-black text-white flex items-center justify-center px-4 overflow-hidden">
-      
+
       {/* Background Glow */}
       <div className="absolute inset-0">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[140px]" />
@@ -48,7 +53,7 @@ export default function Upload() {
 
       {/* Card */}
       <div className="relative z-10 w-full max-w-xl bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 shadow-xl">
-        
+
         <h2 className="text-3xl font-bold mb-2 text-center">
           Upload Your Video
         </h2>
