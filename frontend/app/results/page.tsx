@@ -1,20 +1,30 @@
 "use client";
-import { useEffect, useState } from "react";
-import api from "../../lib/apiInstance"
 
-interface Clip{
-  start: number;
-  duration: number;
+import { useEffect, useState } from "react";
+import api from "../../lib/apiInstance";
+
+/* ------------------ TYPES ------------------ */
+
+interface Clip {
+  video: string;
+  caption?: string;
+  hashtags?: string[];
+  ocr_text?: string[];
 }
 
-interface ResultsResponse{
+interface ResultsResponse {
+  status: "processing" | "done" | "failed";
   clips: Clip[];
 }
 
+/* ------------------ PAGE ------------------ */
+
 export default function Results({ searchParams }: any) {
   const jobId = searchParams.jobId;
-  const [clips, setClips] = useState<any[]>([]);
+
+  const [clips, setClips] = useState<Clip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!jobId) return;
@@ -25,9 +35,14 @@ export default function Results({ searchParams }: any) {
       try {
         const data = await api.get<ResultsResponse>(`/results/${jobId}`);
 
-
-        if(data.clips?.length > 0){
+        if (data.clips && data.clips.length > 0) {
           setClips(data.clips);
+          setLoading(false);
+          clearInterval(interval);
+        }
+
+        if (data.status === "failed") {
+          setError("Video processing failed.");
           setLoading(false);
           clearInterval(interval);
         }
@@ -36,10 +51,7 @@ export default function Results({ searchParams }: any) {
       }
     };
 
-    // Initial fetch
     fetchResults();
-
-    // Poll every 3 seconds
     interval = setInterval(fetchResults, 3000);
 
     return () => clearInterval(interval);
@@ -47,19 +59,18 @@ export default function Results({ searchParams }: any) {
 
   return (
     <main className="relative min-h-screen bg-black text-white px-6 py-10 overflow-hidden">
-
       {/* Background Glow */}
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2
+        <div
+          className="absolute top-1/4 left-1/2 -translate-x-1/2
                         w-[600px] h-[600px] bg-purple-600/25
-                        rounded-full blur-[160px]" />
+                        rounded-full blur-[160px]"
+        />
       </div>
 
       {/* Header */}
       <div className="relative z-10 max-w-7xl mx-auto mb-10">
-        <h1 className="text-4xl font-extrabold mb-2">
-          Your AI-Generated Reel
-        </h1>
+        <h1 className="text-4xl font-extrabold mb-2">Your AI-Generated Reel</h1>
         <p className="text-gray-400">
           We’re crafting highlights from your video
         </p>
@@ -67,12 +78,13 @@ export default function Results({ searchParams }: any) {
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto">
-
-        {/* 🔄 PROCESSING ANIMATION */}
+        {/* LOADING */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 border-4 border-purple-500
-                            border-t-transparent rounded-full animate-spin mb-6" />
+            <div
+              className="w-16 h-16 border-4 border-purple-500
+                            border-t-transparent rounded-full animate-spin mb-6"
+            />
             <p className="text-gray-400 text-lg">
               Analyzing & generating your reel…
             </p>
@@ -82,7 +94,12 @@ export default function Results({ searchParams }: any) {
           </div>
         )}
 
-        {/* 🎬 RESULT */}
+        {/* ERROR */}
+        {!loading && error && (
+          <p className="text-red-500 text-center">{error}</p>
+        )}
+
+        {/* RESULTS */}
         {!loading && clips.length > 0 && (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {clips.map((clip, i) => (
@@ -99,6 +116,21 @@ export default function Results({ searchParams }: any) {
                   src={`http://127.0.0.1:8000${clip.video}`}
                 />
 
+                {/* CAPTION */}
+                {clip.caption && (
+                  <p className="mt-3 text-sm text-gray-300 whitespace-pre-line">
+                    {clip.caption}
+                  </p>
+                )}
+
+                {/* HASHTAGS */}
+                {clip.hashtags && clip.hashtags.length > 0 && (
+                  <p className="mt-2 text-sm text-purple-400">
+                    {clip.hashtags.join(" ")}
+                  </p>
+                )}
+
+                {/* DOWNLOAD */}
                 <a
                   href={`http://127.0.0.1:8000${clip.video}`}
                   download

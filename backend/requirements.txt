@@ -6,3 +6,5 @@ ffmpeg-python
 opencv-python
 librosa
 openai
+easyocr
+numpy

@@ -9,6 +9,9 @@ from app.services.video_processor import get_video_duration
 from app.services.highlight_detector import detect_highlights
 from app.services.clipper import create_reel_from_chunks
 from app.store import RESULTS
+from app.services.frame_extractor import extract_frames
+from app.services.scene_analyzer import detect_scene_type
+from app.services.caption_templates import generate_caption_and_hashtags
 
 router = APIRouter()
 
@@ -21,37 +24,64 @@ os.makedirs(CLIPS_DIR, exist_ok=True)
 
 def process_video_async(path: str, job_id: str):
     try:
-        # Get duration
-        duration = get_video_duration(path)
+        print(f"[JOB {job_id}] Processing started")
 
-        #  Detect non-continuous highlights
+        #  Get duration
+        duration = get_video_duration(path)
+        print(f"[JOB {job_id}] Duration: {duration}")
+
+        #  Detect highlights
         highlights = detect_highlights(duration)
+        print(f"[JOB {job_id}] Highlights: {highlights}")
 
         if not highlights:
-            print(f"[JOB {job_id}] No highlights detected")
-            RESULTS[job_id] = []
-            return
+            print(f"[JOB {job_id}] No highlights, using fallback clip")
+            highlights = [{
+                "start": int(duration * 0.25),
+                "duration": 5
+            }]
 
-        #  Create ONE reel
+        #  Create reel
         reel_filename = f"{job_id}_reel.mp4"
         reel_path = os.path.join(CLIPS_DIR, reel_filename)
 
+        print(f"[JOB {job_id}] Creating reel")
         create_reel_from_chunks(
             input_path=path,
             output_path=reel_path,
             highlights=highlights
         )
 
-        #  Save result (URL, not file path)
+        #  Extract frames
+        frames_dir = os.path.join("temp_frames", job_id)
+        print(f"[JOB {job_id}] Extracting frames")
+        frames_paths = extract_frames(path, frames_dir)
+
+        #  Analyze scene ( CORE LOGIC)
+        scene_type = detect_scene_type(frames_paths)
+        print(f"[JOB {job_id}] Scene type detected: {scene_type}")
+
+        #  Generate caption & hashtags (RULE-BASED)
+        is_animated = False
+        caption, hashtags = generate_caption_and_hashtags(scene_type = scene_type, is_animated=is_animated)
+
+
+        #  Save results
         RESULTS[job_id] = [{
-            "video": f"/clips/{reel_filename}"
-        }]
+                "video": f"/clips/{reel_filename}",
+                "caption": caption,
+                "hashtags": hashtags,
+                "scene_type": scene_type
+            }]
 
         print(f"[JOB {job_id}] Reel generated successfully")
 
     except Exception as e:
         print(f"[JOB {job_id}] Processing failed:", e)
-        RESULTS[job_id] = []
+        RESULTS[job_id] = {
+            "status": "error",
+            "clips": []
+        }
 
 
 @router.post("/upload")
